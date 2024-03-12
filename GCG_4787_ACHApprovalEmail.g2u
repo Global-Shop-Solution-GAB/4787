@@ -1,0 +1,238 @@
+Program.Sub.ScreenSU.Start
+Gui.fEmailListMaint..Create
+Gui.fEmailListMaint..Caption("ACH approval Email list Maint")
+Gui.fEmailListMaint..Size(5670,1695)
+Gui.fEmailListMaint..MinX(0)
+Gui.fEmailListMaint..MinY(0)
+Gui.fEmailListMaint..Position(0,0)
+Gui.fEmailListMaint..BackColor(-2147483633)
+Gui.fEmailListMaint..MousePointer(0)
+Gui.fEmailListMaint..Event(UnLoad,unload_all)
+Gui.fEmailListMaint.lbl1.Create(Label,"Enter Email ID",True,1695,255,0,135,255,True,0,"Arial",8,-2147483633,0)
+Gui.fEmailListMaint.txtEmailEntry.Create(TextBox,"",True,3345,300,0,2055,165,True,0,"Arial",8,-2147483643,1)
+Gui.fEmailListMaint.cmdAdd.Create(Button)
+Gui.fEmailListMaint.cmdAdd.Size(1695,375)
+Gui.fEmailListMaint.cmdAdd.Position(135,615)
+Gui.fEmailListMaint.cmdAdd.Caption("Save")
+Gui.fEmailListMaint.cmdAdd.Event(Click,cmdAdd_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+v.Global.sEmailBody.Declare(string)
+v.Global.sFilePath.Declare(String)
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+f.ODBC.Connection!conx.openconnection(v.Ambient.PDSN,v.Ambient.PUser,v.Ambient.PPass)
+f.Intrinsic.String.Build("{0}\GCG_4787_LIST.txt",v.Caller.GasDir,v.Global.sFilePath)
+f.Intrinsic.Control.If(v.Caller.Hook,=,42314)
+	f.Intrinsic.Control.If(v.Passed.000009,=,"Y")
+		
+		f.Intrinsic.Control.CallSub(SendEmail)
+	f.Intrinsic.Control.EndIf
+f.Intrinsic.Control.ElseIf(v.Caller.Switches,=,"O")
+	f.Intrinsic.Control.CallSub(LaunchMaint)
+f.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.SendEmail.Start
+v.Local.sEmailID.Declare(String)
+v.Local.sEmailBody.Declare(String)
+v.Local.sEmailBody2.Declare(String)
+v.Local.sSubject.Declare(String)
+v.Local.sAcctType.Declare(String)
+v.Local.sPayType.Declare(String)
+v.Local.iPayType.Declare(Long)
+v.Local.bCheck.Declare(Boolean)
+v.Local.bSwift.Declare(Boolean)
+v.Local.sVendor.Declare(String)
+v.Local.sVendorName.Declare(String)
+v.Local.sEmailFlag.Declare(String)
+v.Local.sSQL.Declare(String)
+f.Intrinsic.Control.Try
+
+
+
+
+
+f.Intrinsic.File.Exists(v.Global.sFilePath,v.Local.bCheck)
+f.Intrinsic.Control.If(v.Local.bCheck,=,true)
+	f.Intrinsic.File.File2String(v.Global.sFilePath,v.Local.sEmailID)
+f.Intrinsic.Control.Else
+	f.Intrinsic.UI.Msgbox("Approval Email ID has not being configured. Contact Administrator.")
+	f.Intrinsic.control.callsub(Unload_all)
+f.Intrinsic.Control.EndIf
+
+
+f.Intrinsic.Control.If(v.Passed.000001.trim,<>,"")
+	v.Local.sAcctType.Set(v.Passed.000001.trim)
+
+f.Intrinsic.Control.ElseIf(v.Passed.000002.trim,<>,"")
+	v.Local.sAcctType.Set(v.Passed.000002.trim)
+f.Intrinsic.Control.EndIf
+
+f.Intrinsic.Control.If(v.Passed.000017.trim,=,"CCD")
+	v.Local.iPayType.Set(1)
+
+f.Intrinsic.Control.ElseIf(v.Passed.000017.trim,=,"PPD")
+	v.Local.iPayType.Set(2)
+f.Intrinsic.Control.Else
+	v.Local.iPayType.Set(0)
+f.Intrinsic.Control.EndIf
+
+f.Intrinsic.Control.If(v.Passed.000025,=,"0")
+	v.Local.bSwift.Set(false)
+f.Intrinsic.Control.Else
+	v.Local.bSwift.Set(True)
+f.Intrinsic.Control.EndIf
+
+
+v.Local.sVendor.set(v.Passed.VENDOR-NUMBER)
+f.Intrinsic.String.RPad(v.Local.sVendor," ",6,v.Local.sVendor)
+f.Intrinsic.String.Build("select NAME_VENDOR from V_VENDOR_MASTER WHERE VENDOR = '{0}' ",V.Local.sVendor,V.Local.sSQL)
+f.ODBC.Connection!conx.executeandreturn(V.Local.sSQL,v.Local.sVendorName)
+f.Intrinsic.string.build("*!*{0}",v.Local.sEmailID,v.Local.sEmailID)
+
+f.Intrinsic.String.Build("select BANK_ACCOUNT,BANK_ROUTING_NUM,BANK_ACCOUNT_NUM, ACH_PAYMENT_TYPE,SWIFT_CODE from V_VENDOR_INTL WHERE REC = '4' AND VENDOR = '{0}' ",V.Local.sVendor,V.Local.sSQL)
+F.ODBC.Connection!conx.OpenLocalRecordsetRO("rst",V.Local.sSql)
+
+
+F.Intrinsic.Control.If(V.ODBC.Conx!rst.EOF,=,True)
+	f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Local.sSubject)
+'	f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'.{3}{4} Routing Number : {4}{5}{3}{4} Account Number : {4}{6}{3}{3}This is a new entry for the vendor.",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Ambient.NewLine,v.Ambient.Tab,v.Passed.000005,v.passed.000006,v.Local.sEmailBody) 
+ 	f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'.{3}Modified Values {3}{4} Routing Number : {4}{5}{3}{4} Account Number : {4}{6}{3}{4} Account Type : {4}{7}{3}{4} Payment Type : {4}{8}{3}{4} Router is Swift Code : {4}{9}{3} This is a new entry for the vendor.",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Ambient.NewLine,v.Ambient.Tab,v.Passed.000005,v.passed.000006,v.Local.sAcctType,v.Passed.000017,v.Local.bSwift,v.Local.sEmailBody)
+	
+	f.Global.Messaging.QueueMessage(v.Caller.CompanyCode,,"GCG_4787_ACHApprovalEmail",v.Local.sSubject,"RFC.AP@VOESTALPINE.COM*!*ACH Approved Notification",v.Local.sEmailID,v.Local.sEmailBody)
+	
+	
+	f.Intrinsic.Control.CallSub(Unload_all)
+f.Intrinsic.Control.Else
+	
+	
+	f.Intrinsic.Control.if(v.Passed.000001.trim,<>,v.Local.sAcctType.trim,"OR",v.Passed.000005.trim,<>,V.ODBC.Conx!rst.FieldValTrim!BANK_ROUTING_NUM,v.Passed.000006.trim,<>,V.ODBC.Conx!rst.FieldValTrim!BANK_ACCOUNT_NUM,v.Local.bSwift,<>,V.ODBC.Conx!rst.FieldVal!SWIFT_CODE,v.local.iPayType,<>,V.ODBC.Conx!rst.FieldVal!ACH_PAYMENT_TYPE)
+		f.Intrinsic.Control.If(V.ODBC.Conx!rst.FieldVal!ACH_PAYMENT_TYPE,=,1)
+			v.Local.sPayType.Set("CCD")
+		
+		f.Intrinsic.Control.ElseIf(V.ODBC.Conx!rst.FieldVal!ACH_PAYMENT_TYPE,=,2)
+			v.Local.sPayType.Set("PPD")
+		f.Intrinsic.Control.Else
+			v.Local.sPayType.Set("NA")
+		f.Intrinsic.Control.EndIf
+		f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Local.sSubject)
+		f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'.{3}Modified Values {3}{4} Routing Number : {4}{5}{3}{4} Account Number : {4}{6}{3}{4} Account Type : {4}{7}{3}{4} Payment Type : {4}{8}{3}{4} Router is Swift Code : {4}{9}{3}Original Values ",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Ambient.NewLine,v.Ambient.Tab,v.Passed.000005,v.passed.000006,v.Local.sAcctType,v.Passed.000017,v.Local.bSwift,v.Local.sEmailBody) 
+		f.Intrinsic.String.Build("{0}{1} Routing Number : {1}{2}{0}{1} Account Number : {1}{3}{0}{1} Account Type : {1}{4}{0}{1} Payment Type : {1}{5}{0}{1} Router is Swift Code : {1}{6} ",v.Ambient.NewLine,v.Ambient.Tab,V.ODBC.Conx!rst.FieldValTrim!BANK_ROUTING_NUM,V.ODBC.Conx!rst.FieldValTrim!BANK_ACCOUNT_NUM,v.Local.sAcctType.trim,v.Local.sPayType,V.ODBC.Conx!rst.FieldVal!SWIFT_CODE,v.Local.sEmailBody2) 
+		f.Intrinsic.String.build("{0}{2}",v.Local.sEmailBody,v.ambient.NewLine,v.Local.sEmailBody2,v.local.sEmailBody)
+	
+		f.Global.Messaging.QueueMessage(v.Caller.CompanyCode,,"GCG_4787_ACHApprovalEmail",v.Local.sSubject,"RFC.AP@VOESTALPINE.COM*!*ACH Approved Notification",v.Local.sEmailID,v.Local.sEmailBody)
+		f.Intrinsic.Control.CallSub(Unload_all)
+	f.Intrinsic.Control.Else
+		f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Local.sSubject)
+	'	f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'.{3}{4} Routing Number : {4}{5}{3}{4} Account Number : {4}{6}{3}{3}This is a new entry for the vendor.",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Ambient.NewLine,v.Ambient.Tab,v.Passed.000005,v.passed.000006,v.Local.sEmailBody) 
+	 	f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'.{3}Values {3}{4} Routing Number : {4}{5}{3}{4} Account Number : {4}{6}{3}{4} Account Type : {4}{7}{3}{4} Payment Type : {4}{8}{3}{4} Router is Swift Code : {4}{9}{3} *only the approved check box was toggled. Modifications may have been saved in a previous session.",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Ambient.NewLine,v.Ambient.Tab,v.Passed.000005,v.passed.000006,v.Local.sAcctType,v.Passed.000017,v.Local.bSwift,v.Local.sEmailBody)
+		
+		f.Global.Messaging.QueueMessage(v.Caller.CompanyCode,,"GCG_4787_ACHApprovalEmail",v.Local.sSubject,"RFC.AP@VOESTALPINE.COM*!*ACH Approved Notification",v.Local.sEmailID,v.Local.sEmailBody)
+	
+		f.Intrinsic.Control.CallSub(Unload_all)
+	f.Intrinsic.Control.EndIf
+
+f.Intrinsic.Control.EndIf
+
+
+
+
+'f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Local.sSubject)
+'f.Intrinsic.String.Build("ACH has been marked as approved for Vendor {0} - {1} by User '{2}'.{3}{4} Routing Number : {4}{5}{3}{4} Account Number : {4}{6}{3}{4} ",V.Local.sVendor,v.Local.sVendorName,v.caller.User,v.Ambient.NewLine,v.Ambient.Tab,v.Passed.000005,v.passed.000006,v.Local.sEmailBody)
+
+'f.Global.Messaging.QueueMessage(v.Caller.CompanyCode,,"GCG_4787_ACHApprovalEmail",v.Local.sSubject,"adsouza@gssmail.com*!*Ashwin",v.Local.sEmailID,v.Local.sEmailBody)
+f.Intrinsic.Control.CallSub(Unload_all)
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.SendEmail.End
+
+Program.Sub.cmdAdd_Click.Start
+v.Local.sEmailID.Declare(String)
+v.Local.bCheck.Declare(Boolean)
+v.Local.sECheck1.Declare(String)
+v.Local.sAllList.Declare(String)
+f.Intrinsic.Control.Try
+'f.Intrinsic.File.Exists(v.global.sFilePath,v.local.bCheck)
+gui.fEmailListMaint..Enabled(False)
+v.Local.sEmailID.Set(v.Screen.fEmailListMaint!txtEmailEntry.text)
+
+'f.Intrinsic.string.IsInString(v.Local.sEmailID.trim,"@",True,v.Local.bCheck)
+'f.Intrinsic.Control.If(v.Local.bCheck,=,True)
+'	f.Intrinsic.string.IsInString(v.Local.sEmailID.trim,".com",True,v.Local.bCheck)
+'		f.Intrinsic.Control.If(v.Local.bCheck,=,False)
+'			F.Intrinsic.UI.Msgbox("Email ID is not in the correct Format. Please enter a valid Email  ID.")
+'			gui.fEmailListMaint..Enabled(True)
+'			f.Intrinsic.Control.ExitSub
+'		f.Intrinsic.Control.EndIf
+'f.Intrinsic.Control.Else
+'	F.Intrinsic.UI.Msgbox("Email ID is not in the correct Format. Please enter a valid Email  ID.")
+'	gui.fEmailListMaint..Enabled(True)
+'	f.Intrinsic.Control.ExitSub
+'f.Intrinsic.Control.EndIf
+'Function.Intrinsic.Debug.InvokeDebugger
+'Function.Intrinsic.Debug.Stop
+'f.Intrinsic.string.RegExMatch(v.Local.sEmailID.Trim,"^[_a-z0-9-]+(.[a-z0-9-]+)@[a-z0-9-]+(.[a-z0-9-]+)*(.[a-z]{2,4})$",true,v.Local.sECheck1)
+'f.Intrinsic.Control.If(v.Local.sECheck1.trim,=,"")
+'	F.Intrinsic.UI.Msgbox("Email ID is not in the correct Format. Please enter a valid Email  ID.")
+'	gui.fEmailListMaint..Enabled(True)
+'	f.Intrinsic.Control.ExitSub
+'f.Intrinsic.Control.EndIf
+
+f.Global.Messaging.IsAddressValid(v.Local.sEmailID.Trim,v.Local.bCheck)
+f.Intrinsic.Control.If(v.Local.bCheck,=,false)
+	F.Intrinsic.UI.Msgbox("Email ID is not in the correct Format. Please enter a valid Email  ID.")
+	gui.fEmailListMaint..Enabled(True)
+	f.Intrinsic.Control.ExitSub
+f.Intrinsic.Control.EndIf
+
+f.Intrinsic.File.String2File(v.Global.sFilePath,v.Local.sEmailID.Trim)
+
+
+F.Intrinsic.UI.Msgbox("Email ID has been Saved")
+gui.fEmailListMaint..Enabled(True)
+gui.fEmailListMaint..SetFocus
+
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+
+
+
+Program.Sub.cmdAdd_Click.End
+
+Program.Sub.LaunchMaint.Start
+v.Local.sEmailID.Declare(string)
+v.Local.bCheck.Declare(Boolean)
+f.Intrinsic.File.Exists(v.Global.sFilePath,v.Local.bCheck)
+f.Intrinsic.Control.If(v.Local.bCheck,=,true)
+	f.Intrinsic.File.File2String(v.Global.sFilePath,v.Local.sEmailID)
+	gui.fEmailListMaint.txtEmailEntry.Text(v.Local.sEmailID.Trim)
+f.Intrinsic.Control.EndIf
+
+
+gui.fEmailListMaint..Show
+gui.fEmailListMaint..SetFocus
+
+Program.Sub.LaunchMaint.End
+
+Program.Sub.unload_all.Start
+f.ODBC.Connection!conx.Close
+F.Intrinsic.Control.End
+Program.Sub.unload_all.End
+
+Program.Sub.catching.Start
+v.Local.sError.declare(string)
+Function.Intrinsic.String.Concat(v.Ambient.Now,": Project: GCG_4787_ACHApprovalEmail.g2u ",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",v.Args.sub,V.Ambient.NewLine,"Error Occurred ",V.Args.errorno," with description ",V.args.errordesc,V.Local.sError)
+f.Intrinsic.UI.Msgbox(v.Local.sError)
+
+f.Intrinsic.Control.CallSub(unload_all)
+
+
+Program.Sub.catching.End
